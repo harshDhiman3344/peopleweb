@@ -26,6 +26,7 @@ interface PersonDetailPanelProps {
   onDiscoverFromPerson: (person: Person) => void;
   onDeleteRelationship: (relId: string) => void;
   onEditRelationship?: (rel: Relationship) => void;
+  canEdit?: boolean;
 }
 
 export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
@@ -40,6 +41,7 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
   onAddNewPersonConnectedTo,
   onDiscoverFromPerson,
   onDeleteRelationship,
+  canEdit = true,
 }) => {
   if (!person) return null;
 
@@ -93,36 +95,40 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
       </div>
 
       {/* Action Buttons */}
-      <div className="p-3 bg-slate-900/60 border-b border-slate-800/80 grid grid-cols-3 gap-1.5">
+      <div className={`p-3 bg-slate-900/60 border-b border-slate-800/80 ${canEdit ? 'grid grid-cols-3 gap-1.5' : 'flex justify-center'}`}>
         <button
           onClick={() => onDiscoverFromPerson(person)}
-          className="flex flex-col items-center justify-center gap-1 px-2 py-2 bg-gradient-to-r from-amber-500/20 to-amber-600/20 border border-amber-500/40 hover:border-amber-400 text-amber-300 hover:text-amber-200 text-[11px] font-semibold rounded-lg transition-all"
+          className={`flex flex-col items-center justify-center gap-1 px-2 py-2 bg-gradient-to-r from-amber-500/20 to-amber-600/20 border border-amber-500/40 hover:border-amber-400 text-amber-300 hover:text-amber-200 text-[11px] font-semibold rounded-lg transition-all ${!canEdit ? 'w-full' : ''}`}
           title="Find shortest path"
         >
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Six Degrees</span>
+          <span>Six Degrees Path</span>
         </button>
 
-        <button
-          onClick={() => onAddConnectionFromPerson(person)}
-          className="flex flex-col items-center justify-center gap-1 px-2 py-2 bg-sky-500/20 border border-sky-500/40 hover:border-sky-400 text-sky-300 hover:text-sky-200 text-[11px] font-semibold rounded-lg transition-all"
-          title="Connect with existing person"
-        >
-          <Link2 className="w-3.5 h-3.5" />
-          <span>Connect</span>
-        </button>
+        {canEdit && (
+          <>
+            <button
+              onClick={() => onAddConnectionFromPerson(person)}
+              className="flex flex-col items-center justify-center gap-1 px-2 py-2 bg-sky-500/20 border border-sky-500/40 hover:border-sky-400 text-sky-300 hover:text-sky-200 text-[11px] font-semibold rounded-lg transition-all"
+              title="Connect with existing person"
+            >
+              <Link2 className="w-3.5 h-3.5" />
+              <span>Connect</span>
+            </button>
 
-        {onAddNewPersonConnectedTo ? (
-          <button
-            onClick={() => onAddNewPersonConnectedTo(person)}
-            className="flex flex-col items-center justify-center gap-1 px-2 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-white text-[11px] font-semibold rounded-lg transition-all"
-            title="Create new person connected directly"
-          >
-            <UserPlus className="w-3.5 h-3.5 text-sky-400" />
-            <span>+ New Person</span>
-          </button>
-        ) : (
-          <div />
+            {onAddNewPersonConnectedTo ? (
+              <button
+                onClick={() => onAddNewPersonConnectedTo(person)}
+                className="flex flex-col items-center justify-center gap-1 px-2 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-white text-[11px] font-semibold rounded-lg transition-all"
+                title="Create new person connected directly"
+              >
+                <UserPlus className="w-3.5 h-3.5 text-sky-400" />
+                <span>+ New Person</span>
+              </button>
+            ) : (
+              <div />
+            )}
+          </>
         )}
       </div>
 
@@ -253,30 +259,38 @@ export const PersonDetailPanel: React.FC<PersonDetailPanelProps> = ({
 
       {/* Footer Management */}
       <div className="p-4 border-t border-slate-800 bg-slate-900/80 flex items-center justify-between gap-3">
-        <button
-          onClick={() => onEditPerson(person)}
-          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition-colors"
-        >
-          <Edit2 className="w-3.5 h-3.5" />
-          <span>Edit Details</span>
-        </button>
+        {canEdit ? (
+          <>
+            <button
+              onClick={() => onEditPerson(person)}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg border border-slate-700 transition-colors"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              <span>Edit Details</span>
+            </button>
 
-        <button
-          onClick={() => {
-            if (
-              window.confirm(
-                `Are you sure you want to remove ${person.name} and all associated relationships?`
-              )
-            ) {
-              onDeletePerson(person.id);
-            }
-          }}
-          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 text-xs font-medium rounded-lg border border-rose-500/30 transition-colors"
-          title="Delete person from web"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          <span>Delete</span>
-        </button>
+            <button
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Are you sure you want to remove ${person.name} and all associated relationships?`
+                  )
+                ) {
+                  onDeletePerson(person.id);
+                }
+              }}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 text-xs font-medium rounded-lg border border-rose-500/30 transition-colors"
+              title="Delete person from web"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete</span>
+            </button>
+          </>
+        ) : (
+          <div className="w-full text-center py-1 text-xs text-slate-400">
+            <span>Viewing shared constellation (Read-only)</span>
+          </div>
+        )}
       </div>
     </div>
   );

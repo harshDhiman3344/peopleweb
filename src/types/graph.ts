@@ -95,3 +95,47 @@ export const RELATIONSHIP_COLORS: Record<RelationshipType, string> = {
   acquaintance: '#94a3b8', // slate
   custom: '#8b5cf6', // violet
 };
+
+export type StorageMode = 'local' | 'cloud';
+
+export type MapMemberRole = 'owner' | 'editor' | 'viewer';
+
+export interface MapMember {
+  uid: string;
+  email: string;
+  displayName?: string;
+  photoURL?: string;
+  role: MapMemberRole;
+  joinedAt: number;
+}
+
+export interface MapInvite {
+  token: string;
+  role: MapMemberRole;
+  createdAt: number;
+  createdBy: string;
+  expiresAt?: number;
+  maxUses?: number;
+  useCount: number;
+}
+
+export interface SharedMap {
+  id: string;
+  title: string;
+  description?: string;
+  ownerId: string;
+  ownerName: string;
+  members: Record<string, MapMember>;
+  invites?: Record<string, MapInvite>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  isAnonymous: boolean;
+}
+

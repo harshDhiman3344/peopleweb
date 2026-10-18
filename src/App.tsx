@@ -13,10 +13,14 @@ import { PersonModal } from './components/Modals/PersonModal';
 import { RelationshipModal } from './components/Modals/RelationshipModal';
 import { ConnectionDiscoveryModal } from './components/Modals/ConnectionDiscoveryModal';
 import { ImportExportModal } from './components/Modals/ImportExportModal';
+import { AuthModal } from './components/Modals/AuthModal';
+import { ShareMapModal } from './components/Modals/ShareMapModal';
+import { CloudMapsModal } from './components/Modals/CloudMapsModal';
 import { getAllTags } from './algorithms/pathFinder';
 import type { Person, Relationship } from './types/graph';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Users, ArrowRight, X } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { logoutUser } from './services/firebase';
 
 export function App() {
   const { width, height } = useWindowSize();
@@ -26,6 +30,13 @@ export function App() {
     people,
     relationships,
     isLoading,
+    storageMode,
+    activeMap,
+    userMaps,
+    currentUser,
+    canEdit,
+    pendingInvite,
+    setPendingInvite,
     selectedPersonId,
     selectedPerson,
     setSelectedPersonId,
@@ -49,6 +60,12 @@ export function App() {
     resetNetwork,
     clearNetwork,
     importData,
+    switchToLocal,
+    switchToCloudMap,
+    createNewCloudMap,
+    migrateCurrentDataToCloud,
+    generateInvite,
+    localData,
   } = useGraphData();
 
   // Modal states
@@ -65,6 +82,9 @@ export function App() {
   const [discoveryInitialSourceId, setDiscoveryInitialSourceId] = useState<string | undefined>(undefined);
 
   const [isImportExportModalOpen, setIsImportExportModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isCloudMapsModalOpen, setIsCloudMapsModalOpen] = useState(false);
 
   // All distinct tags across people
   const allTags = useMemo(() => getAllTags(people), [people]);
@@ -77,6 +97,9 @@ export function App() {
         else if (isRelationshipModalOpen) setIsRelationshipModalOpen(false);
         else if (isDiscoveryModalOpen) setIsDiscoveryModalOpen(false);
         else if (isImportExportModalOpen) setIsImportExportModalOpen(false);
+        else if (isAuthModalOpen) setIsAuthModalOpen(false);
+        else if (isShareModalOpen) setIsShareModalOpen(false);
+        else if (isCloudMapsModalOpen) setIsCloudMapsModalOpen(false);
         else if (discoveryPath) clearDiscoveryPath();
         else if (selectedPersonId) setSelectedPersonId(null);
       }
@@ -88,6 +111,9 @@ export function App() {
     isRelationshipModalOpen,
     isDiscoveryModalOpen,
     isImportExportModalOpen,
+    isAuthModalOpen,
+    isShareModalOpen,
+    isCloudMapsModalOpen,
     discoveryPath,
     selectedPersonId,
     clearDiscoveryPath,
@@ -144,6 +170,11 @@ export function App() {
     }
   }, []);
 
+  const handleSignOut = useCallback(async () => {
+    await logoutUser();
+    await switchToLocal();
+  }, [switchToLocal]);
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center w-full h-full bg-[#080c16] text-slate-200">
@@ -175,6 +206,14 @@ export function App() {
         onOpenImportExport={() => setIsImportExportModalOpen(true)}
         allPeople={people}
         onSelectPerson={(id) => setSelectedPersonId(id)}
+        storageMode={storageMode}
+        activeMap={activeMap}
+        currentUser={currentUser}
+        canEdit={canEdit}
+        onOpenMapsModal={() => setIsCloudMapsModalOpen(true)}
+        onOpenShareModal={() => setIsShareModalOpen(true)}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onSignOut={handleSignOut}
       />
 
       {/* Circle/Tag Filter Chips */}
@@ -240,6 +279,7 @@ export function App() {
         }}
         onDiscoverFromPerson={handleDiscoverFromPerson}
         onDeleteRelationship={removeRelationship}
+        canEdit={canEdit}
       />
 
       {/* Person Modal (Create & Edit) */}
@@ -302,6 +342,76 @@ export function App() {
         onClearNetwork={clearNetwork}
       />
 
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={() => {
+          setIsAuthModalOpen(false);
+        }}
+      />
+
+      {/* Share Graph Modal (Generate & Copy Invites) */}
+      <ShareMapModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        activeMap={activeMap}
+        currentUser={currentUser}
+        onGenerateInvite={generateInvite}
+      />
+
+      {/* Maps & Cloud Sync Modal */}
+      <CloudMapsModal
+        isOpen={isCloudMapsModalOpen}
+        onClose={() => setIsCloudMapsModalOpen(false)}
+        storageMode={storageMode}
+        activeMap={activeMap}
+        userMaps={userMaps}
+        currentUser={currentUser}
+        currentLocalData={{
+          version: 1,
+          exportDate: new Date().toISOString(),
+          people: localData.people,
+          relationships: localData.relationships,
+        }}
+        onSwitchToLocal={switchToLocal}
+        onSwitchToCloudMap={switchToCloudMap}
+        onCreateCloudMap={createNewCloudMap}
+        onMigrateToCloud={migrateCurrentDataToCloud}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onOpenShareModal={() => setIsShareModalOpen(true)}
+      />
+
+      {/* Pending Invite Notification Pill */}
+      {pendingInvite && !currentUser && (
+        <div className="fixed top-20 inset-x-4 max-w-lg mx-auto z-40 p-4 bg-[#0d1322]/95 backdrop-blur-xl border border-sky-500/50 rounded-2xl shadow-2xl flex items-center justify-between gap-3 animate-in slide-in-from-top-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-sky-500/20 text-sky-400">
+              <Users className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-100">You're invited to a shared web!</p>
+              <p className="text-[11px] text-slate-400">Sign in or join as guest to collaborate on this graph.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="flex items-center gap-1 px-3 py-1.5 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs rounded-xl transition-all"
+            >
+              <span>Join</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setPendingInvite(null)}
+              className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Empty State Banner if user wiped all data */}
       {people.length === 0 && (
         <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
@@ -314,18 +424,22 @@ export function App() {
               Begin by adding your first acquaintance or restore the collegiate demo map!
             </p>
             <div className="flex gap-2 justify-center">
-              <button
-                onClick={handleOpenAddPerson}
-                className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs rounded-xl transition-all"
-              >
-                Add First Person
-              </button>
-              <button
-                onClick={resetNetwork}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition-all"
-              >
-                Load Sample Network
-              </button>
+              {canEdit && (
+                <button
+                  onClick={handleOpenAddPerson}
+                  className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs rounded-xl transition-all"
+                >
+                  Add First Person
+                </button>
+              )}
+              {storageMode === 'local' && (
+                <button
+                  onClick={resetNetwork}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition-all"
+                >
+                  Load Sample Network
+                </button>
+              )}
             </div>
           </div>
         </div>

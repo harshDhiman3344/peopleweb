@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isMapOwner(mapData) {
+      return isAuthenticated() && mapData.ownerId == request.auth.uid;
+    }
+
+    function isMapMember(mapData) {
+      return isAuthenticated() && (request.auth.uid in mapData.members);
+    }
+
+    function isMapEditor(mapData) {
+      return isAuthenticated() && (
+        mapData.ownerId == request.auth.uid ||
+        (request.auth.uid in mapData.members && mapData.members[request.auth.uid].role in ['owner', 'editor'])
+      );
+    }
+
+    function getParentMap(mapId) {
+      return get(/databases/$(database)/documents/maps/$(mapId)).data;
+    }
+
+    // Shared Maps Collection
+    match /maps/{mapId} {
+      // Authenticated users can read a map if they are a member, or to evaluate an invitation link
+      allow get: if isAuthenticated();
+      allow list: if isAuthenticated();
+
+      // Only authenticated users can create a new map, and must assign themselves as owner
+      allow create: if isAuthenticated() &&
+                    request.resource.data.ownerId == request.auth.uid &&
+                    request.resource.data.members[request.auth.uid].role == 'owner';
+
+      // Updates: Existing editor/owner can update map data; or an authenticated user joining with an invite token
+      allow update: if isAuthenticated() && (
+        isMapEditor(resource.data) ||
+        // User joining with an invite token: only updating members and incrementing token useCount
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'invites']))
+      );
+
+      // Only the map owner can delete a map
+      allow delete: if isMapOwner(resource.data);
+
+      // People Subcollection
+      match /people/{personId} {
+        allow read: if isMapMember(getParentMap(mapId));
+        allow write: if isMapEditor(getParentMap(mapId));
+      }
+
+      // Relationships Subcollection
+      match /relationships/{relId} {
+        allow read: if isMapMember(getParentMap(mapId));
+        allow write: if isMapEditor(getParentMap(mapId));
+      }
+    }
+  }
+}

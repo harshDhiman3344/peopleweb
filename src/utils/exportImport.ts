@@ -76,3 +76,13 @@ export function validateImportJson(rawText: string): ValidationResult {
     };
   }
 }
+
+export async function parseAndValidateJsonFile(file: File): Promise<HumanWebData> {
+  const text = await file.text();
+  const validation = validateImportJson(text);
+  if (!validation.isValid || !validation.data) {
+    throw new Error(validation.error || 'Invalid Human Web JSON format.');
+  }
+  return validation.data;
+}
+
